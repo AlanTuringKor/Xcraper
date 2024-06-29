@@ -6,7 +6,11 @@ from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
 from bs4 import BeautifulSoup
 import time
-from selenium.common.exceptions import WebDriverException
+import logging
+
+# Set up logging
+logging.basicConfig(filename='scraper.log', level=logging.INFO,
+                    format='%(asctime)s - %(levelname)s - %(message)s')
 
 def scrape_tweets(username, num_tweets=50):
     options = webdriver.ChromeOptions()
@@ -20,7 +24,9 @@ def scrape_tweets(username, num_tweets=50):
     
     max_retries = 3
     for attempt in range(max_retries):
+        driver = None
         try:
+            logging.info(f"Attempt {attempt + 1} to scrape tweets for user {username}")
             driver = webdriver.Chrome(service=service, options=options)
             url = f"https://twitter.com/{username}"
             driver.get(url)
@@ -33,11 +39,12 @@ def scrape_tweets(username, num_tweets=50):
                 driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
 
                 # Wait for new content to load
-                time.sleep(5)  # Increased wait time
+                time.sleep(5)
 
                 # Calculate new scroll height and compare with last scroll height
                 new_height = driver.execute_script("return document.body.scrollHeight")
                 if new_height == last_height:
+                    logging.info("Reached end of page or no new content loaded")
                     break
                 last_height = new_height
 
@@ -50,15 +57,19 @@ def scrape_tweets(username, num_tweets=50):
                     if tweet_text and tweet_text.get_text(strip=True) not in tweets:
                         tweets.append(tweet_text.get_text(strip=True))
 
-                print(f"Scraped {len(tweets)} tweets so far...")
+                logging.info(f"Scraped {len(tweets)} tweets so far...")
 
-            driver.quit()
+            if driver:
+                driver.quit()
+            logging.info(f"Successfully scraped {len(tweets)} tweets for user {username}")
             return tweets[:num_tweets]
 
-        except WebDriverException as e:
-            print(f"Attempt {attempt + 1} failed with error: {str(e)}")
+        except Exception as e:
+            logging.error(f"Error during attempt {attempt + 1}: {str(e)}", exc_info=True)
+            if driver:
+                driver.quit()
             if attempt == max_retries - 1:
-                print("Max retries reached. Unable to scrape tweets.")
+                logging.error(f"Max retries reached. Unable to scrape tweets for user {username}")
                 return []
             time.sleep(5)  # Wait before retrying
 
@@ -67,8 +78,12 @@ username = 'example_user'
 scraped_tweets = scrape_tweets(username, num_tweets=100)
 
 # Store tweets in a file
-with open(f"{username}_tweets.txt", "w", encoding="utf-8") as f:
-    for i, tweet in enumerate(scraped_tweets, 1):
-        f.write(f"Tweet {i}: {tweet}\n\n")
+try:
+    with open(f"{username}_tweets.txt", "w", encoding="utf-8") as f:
+        for i, tweet in enumerate(scraped_tweets, 1):
+            f.write(f"Tweet {i}: {tweet}\n\n")
+    logging.info(f"Saved {len(scraped_tweets)} tweets to {username}_tweets.txt")
+except Exception as e:
+    logging.error(f"Error while saving tweets to file: {str(e)}", exc_info=True)
 
-print(f"Scraped {len(scraped_tweets)} tweets and saved them to {username}_tweets.txt")
+print(f"Scraping completed. Check {username}_tweets.txt for results and scraper.log for detailed logs.")
