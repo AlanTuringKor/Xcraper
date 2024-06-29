@@ -1,80 +1,59 @@
 from selenium import webdriver
 from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.chrome.service import Service
+from webdriver_manager.chrome import ChromeDriverManager
+from bs4 import BeautifulSoup
 import time
-import threading
 
-from selenium.webdriver.chrome.options import Options
+def scrape_tweets(username, num_tweets=50):
+    # Set up the Selenium WebDriver
+    options = webdriver.ChromeOptions()
+    options.add_argument('--headless')  # Run in headless mode (no GUI)
+    service = Service(ChromeDriverManager().install())
+    driver = webdriver.Chrome(service=service, options=options)
 
-# 웹 드라이버 초기화
-driver = webdriver.Chrome()
+    url = f"https://twitter.com/{username}"
+    driver.get(url)
 
-
-# 웹페이지 열기
-driver.get("https://x.com/elonmusk")
-
-# 콘텐츠 저장소
-content_storage = []
-
-# 저장소 락
-storage_lock = threading.Lock()
-
-def getter():
-    global content_storage, storage_lock
-
-    # 페이지 끝까지 스크롤
+    tweets = []
     last_height = driver.execute_script("return document.body.scrollHeight")
-    while True:
-        # 페이지 끝까지 스크롤
+
+    while len(tweets) < num_tweets:
+        # Scroll down to the bottom
         driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
 
-        # 새로운 콘텐츠가 로드될 때까지 대기
+        # Wait for new content to load
         time.sleep(2)
 
-        # 새로운 스크롤 높이 가져오기
+        # Calculate new scroll height and compare with last scroll height
         new_height = driver.execute_script("return document.body.scrollHeight")
         if new_height == last_height:
             break
         last_height = new_height
 
-        # 새로운 콘텐츠 가져오기
-        content_items = driver.find_elements(By.CSS_SELECTOR, "div.content-item")
+        # Parse the page source with BeautifulSoup
+        soup = BeautifulSoup(driver.page_source, 'html.parser')
+        tweet_divs = soup.find_all('div', {'data-testid': 'tweet'})
 
-        # 콘텐츠 저장
-        new_content = []
-        for item in content_items:
-            if item.text not in content_storage:
-                new_content.append(item.text)
+        for tweet in tweet_divs:
+            tweet_text = tweet.find('div', {'data-testid': 'tweetText'})
+            if tweet_text and tweet_text.get_text(strip=True) not in tweets:
+                tweets.append(tweet_text.get_text(strip=True))
 
-        # 새로운 콘텐츠가 있는 경우에만 저장
-        if new_content:
-            with storage_lock:
-                content_storage.extend(new_content)
+        print(f"Scraped {len(tweets)} tweets so far...")
 
-def printer():
-    global content_storage, storage_lock
+    driver.quit()
+    return tweets[:num_tweets]
 
-    while True:
-        # 새로운 콘텐츠가 있는지 확인
-        with storage_lock:
-            if content_storage:
-                # 새로운 콘텐츠 출력
-                print(content_storage.pop(0))
-        time.sleep(1)
+# Example usage
+username = 'example_user'
+scraped_tweets = scrape_tweets(username, num_tweets=100)
 
-# 스레드 생성 및 실행
-getter_thread = threading.Thread(target=getter)
-printer_thread = threading.Thread(target=printer)
+# Store tweets in a file
+with open(f"{username}_tweets.txt", "w", encoding="utf-8") as f:
+    for i, tweet in enumerate(scraped_tweets, 1):
+        f.write(f"Tweet {i}: {tweet}\n\n")
 
-getter_thread.start()
-printer_thread.start()
-
-# 메인 스레드 대기
-getter_thread.join()
-printer_thread.join()
-
-# 웹페이지 텍스트 콘텐츠 출력
-page_text = driver.find_element(By.TAG_NAME, "body").text
-print(page_text)
-
-# 웹 드라이버 종료
-driver.quit()
+print(f"Scraped {len(scraped_tweets)} tweets and saved them to {username}_tweets.txt")
