@@ -1,4 +1,5 @@
 from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
@@ -8,18 +9,22 @@ from bs4 import BeautifulSoup
 import time
 import logging
 
+
+PROXY = "47.91.88.100:1080"  # IP:PORT of proxy server
+
 # Set up logging
 logging.basicConfig(filename='scraper.log', level=logging.INFO,
                     format='%(asctime)s - %(levelname)s - %(message)s')
 
 def scrape_tweets(username, num_tweets=50):
     options = webdriver.ChromeOptions()
+    
     options.add_argument('--headless')
     options.add_argument('--no-sandbox')
     options.add_argument('--disable-dev-shm-usage')
     options.add_argument('--disable-gpu')
     options.add_argument('--window-size=1920x1080')
-
+    options.add_argument(f'--proxy-server={PROXY}')
     service = Service(ChromeDriverManager().install())
     
     max_retries = 3
@@ -74,7 +79,7 @@ def scrape_tweets(username, num_tweets=50):
             time.sleep(5)  # Wait before retrying
 
 # Example usage
-username = 'example_user'
+username = 'elonmusk'
 scraped_tweets = scrape_tweets(username, num_tweets=100)
 
 # Store tweets in a file
