@@ -1,0 +1,32 @@
+Checked 302 proxies.
+Working proxies: 29
+
+Proxy: 20.210.113.32:8123, Response time: 0.31 seconds
+Proxy: 49.49.45.41:8080, Response time: 1.73 seconds
+Proxy: 3.83.112.63:3128, Response time: 0.48 seconds
+Proxy: 216.246.40.215:8999, Response time: 1.43 seconds
+Proxy: 3.236.183.106:8047, Response time: 0.56 seconds
+Proxy: 20.24.43.214:80, Response time: 0.29 seconds
+Proxy: 51.15.242.202:8888, Response time: 0.46 seconds
+Proxy: 47.56.110.204:8989, Response time: 0.52 seconds
+Proxy: 103.127.1.130:80, Response time: 0.15 seconds
+Proxy: 46.47.197.210:3128, Response time: 0.60 seconds
+Proxy: 20.111.54.16:8123, Response time: 0.38 seconds
+Proxy: 59.144.184.73:80, Response time: 0.67 seconds
+Proxy: 13.81.217.201:80, Response time: 0.48 seconds
+Proxy: 172.183.241.1:8080, Response time: 0.60 seconds
+Proxy: 159.65.77.168:8585, Response time: 0.50 seconds
+Proxy: 35.185.196.38:3128, Response time: 0.39 seconds
+Proxy: 138.197.102.119:80, Response time: 4.29 seconds
+Proxy: 195.114.209.50:80, Response time: 4.97 seconds
+Proxy: 68.178.203.69:8899, Response time: 6.99 seconds
+Proxy: 172.173.132.85:80, Response time: 6.52 seconds
+Proxy: 160.86.242.23:8080, Response time: 1.01 seconds
+Proxy: 211.222.252.187:8197, Response time: 0.94 seconds
+Proxy: 1.162.5.248:80, Response time: 5.40 seconds
+Proxy: 156.67.214.232:80, Response time: 7.28 seconds
+Proxy: 20.193.154.130:8888, Response time: 2.31 seconds
+Proxy: 189.240.60.168:9090, Response time: 2.58 seconds
+Proxy: 189.240.60.163:9090, Response time: 1.63 seconds
+Proxy: 139.99.244.154:80, Response time: 6.90 seconds
+Proxy: 189.240.60.164:9090, Response time: 5.07 seconds

@@ -10,6 +10,7 @@ from bs4 import BeautifulSoup
 import time
 import logging
 import requests
+from CloudflareBypasser import CloudflareBypasser
 
 # Set up logging
 logging.basicConfig(filename='scraper.log', level=logging.INFO,
@@ -63,6 +64,8 @@ def scrape_tweets(username, num_tweets=50, proxies=None):
                 driver = webdriver.Chrome(service=service, options=options)
                 url = f"https://twitter.com/{username}"
                 driver.get(url)
+                cf_bypasser = CloudflareBypasser(driver)
+                cf_bypasser.bypass()
                 time.sleep(10)  # Wait for 10 seconds after loading the page
 
                 # Get HTTP status
