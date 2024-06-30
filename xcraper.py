@@ -140,7 +140,7 @@ def scrape_tweets(username, num_tweets=50, proxies=None):
     return []
 
 # Load proxies
-proxy_list = load_proxies('working_proxies_list.txt')
+proxy_list = load_proxies('proxy_list.txt')
 random.shuffle(proxy_list)  # Randomize proxy order
 
 # Example usage
