@@ -90,27 +90,49 @@ def scrape_tweets(username, num_tweets=50, proxies=None):
 
                 tweets = []
                 last_height = driver.execute_script("return document.body.scrollHeight")
+                scroll_attempt = 0
+                max_scroll_attempts = 30  # Maximum number of scroll attempts
 
-                while len(tweets) < num_tweets:
+                while len(tweets) < num_tweets and scroll_attempt < max_scroll_attempts:
+                    # Wait for tweet elements to be present
+                    try:
+                        WebDriverWait(driver, 10).until(
+                            EC.presence_of_element_located((By.CSS_SELECTOR, 'article[data-testid="tweet"]'))
+                        )
+                    except TimeoutException:
+                        print("  Timeout waiting for tweets to load")
+                        break
+
+                    # Scroll down
                     driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-                    time.sleep(5)
+                    time.sleep(2)  # Wait for content to load
 
+                    # Check if new content has loaded
                     new_height = driver.execute_script("return document.body.scrollHeight")
                     if new_height == last_height:
-                        print("  Reached end of page or no new content loaded")
-                        logging.info("Reached end of page or no new content loaded")
-                        break
+                        scroll_attempt += 1
+                    else:
+                        scroll_attempt = 0
                     last_height = new_height
 
+                    # Extract tweets
                     soup = BeautifulSoup(driver.page_source, 'html.parser')
-                    tweet_divs = soup.find_all('article')
+                    tweet_divs = soup.find_all('article', {'data-testid': 'tweet'})
+                    
+                    new_tweets_found = False
                     for tweet in tweet_divs:
                         tweet_text = tweet.find('div', {'data-testid': 'tweetText'})
                         if not tweet_text:
-                            tweet_text = tweet.find('div', {'lang': True})  # Look for divs with a lang attribute
-                        if tweet_text and tweet_text.get_text(strip=True) not in tweets:
-                            tweets.append(tweet_text.get_text(strip=True))
-
+                            tweet_text = tweet.find('div', {'lang': True})
+                        if tweet_text:
+                            tweet_content = tweet_text.get_text(strip=True)
+                            if tweet_content not in tweets:
+                                tweets.append(tweet_content)
+                                new_tweets_found = True
+                    
+                    if not new_tweets_found:
+                        scroll_attempt += 1
+                    
                     print(f"  Scraped {len(tweets)} tweets so far...")
                     logging.info(f"Scraped {len(tweets)} tweets so far...")
 
