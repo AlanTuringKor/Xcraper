@@ -1,4 +1,4 @@
-## Twitter Scraper
+## Xcraper
 
 This comprehensive Python script empowers you to scrape tweets from public Twitter profiles, leveraging Selenium and BeautifulSoup for web automation and data extraction. It incorporates a robust proxy rotation mechanism to enhance scraping reliability and circumvent potential website restrictions. Additionally, the script meticulously logs information and errors, providing valuable insights for debugging and monitoring purposes. Scraped tweets can be optionally saved to a text file for further analysis.
 
