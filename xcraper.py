@@ -1,15 +1,16 @@
-import random
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.chrome.service import Service
+from selenium.common.exceptions import TimeoutException, StaleElementReferenceException, NoSuchElementException
 from webdriver_manager.chrome import ChromeDriverManager
 from bs4 import BeautifulSoup
 import time
 import logging
 import requests
+import random
 from CloudflareBypasser import CloudflareBypasser
 
 # Set up logging
@@ -54,6 +55,9 @@ def scrape_tweets(username, num_tweets=50, proxies=None):
         options.add_argument('--disable-gpu')
         options.add_argument('--window-size=1920x1080')
         options.add_argument(f'--proxy-server={proxy}')
+        options.add_argument('--disable-blink-features=AutomationControlled')
+        options.add_experimental_option("excludeSwitches", ["enable-automation"])
+        options.add_experimental_option('useAutomationExtension', False)
         
         max_retries = 3
         for attempt in range(max_retries):
@@ -62,79 +66,44 @@ def scrape_tweets(username, num_tweets=50, proxies=None):
                 print(f"  Attempt {attempt + 1}/{max_retries} to scrape tweets for user {username}")
                 logging.info(f"Attempt {attempt + 1}/{max_retries} to scrape tweets for user {username}")
                 driver = webdriver.Chrome(service=service, options=options)
+                driver.execute_cdp_cmd('Network.setUserAgentOverride', {"userAgent": 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.53 Safari/537.36'})
+                
                 url = f"https://twitter.com/{username}"
                 driver.get(url)
-                cf_bypasser = CloudflareBypasser(driver)
-                cf_bypasser.bypass()
-                time.sleep(10)  # Wait for 10 seconds after loading the page
-
-                # Get HTTP status
-                try:
-                    navigation_entry = driver.execute_script("var performance = window.performance || window.mozPerformance || window.msPerformance || window.webkitPerformance || {}; var network = performance.getEntries() || {}; return network;")
-                    for entry in navigation_entry:
-                        if 'name' in entry and entry['name'] == url:
-                            response_status = entry.get('responseStatus')
-                            if response_status:
-                                print(f"  HTTP Status: {response_status}")
-                                logging.info(f"HTTP Status: {response_status}")
-                            else:
-                                print("  Couldn't retrieve HTTP status code")
-                                logging.warning("Couldn't retrieve HTTP status code")
-                            break
-                    else:
-                        print("  Couldn't find matching navigation entry")
-                        logging.warning("Couldn't find matching navigation entry")
-                except Exception as e:
-                    print(f"  Error retrieving HTTP status: {str(e)}")
-                    logging.error(f"Error retrieving HTTP status: {str(e)}")
+                time.sleep(random.uniform(5, 10))  # Random wait time
 
                 tweets = []
                 last_height = driver.execute_script("return document.body.scrollHeight")
-                scroll_attempt = 0
-                max_scroll_attempts = 30  # Maximum number of scroll attempts
-
-                while len(tweets) < num_tweets and scroll_attempt < max_scroll_attempts:
-                    # Wait for tweet elements to be present
-                    try:
-                        WebDriverWait(driver, 10).until(
-                            EC.presence_of_element_located((By.CSS_SELECTOR, 'article[data-testid="tweet"]'))
-                        )
-                    except TimeoutException:
-                        print("  Timeout waiting for tweets to load")
-                        break
-
-                    # Scroll down
+                
+                while len(tweets) < num_tweets:
+                    # Scroll down to bottom
                     driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-                    time.sleep(2)  # Wait for content to load
-
-                    # Check if new content has loaded
+                    
+                    # Wait to load page
+                    time.sleep(random.uniform(2, 5))
+                    
+                    # Calculate new scroll height and compare with last scroll height
                     new_height = driver.execute_script("return document.body.scrollHeight")
                     if new_height == last_height:
-                        scroll_attempt += 1
-                    else:
-                        scroll_attempt = 0
+                        # If heights are the same it will exit the function
+                        break
                     last_height = new_height
 
                     # Extract tweets
                     soup = BeautifulSoup(driver.page_source, 'html.parser')
                     tweet_divs = soup.find_all('article', {'data-testid': 'tweet'})
                     
-                    new_tweets_found = False
                     for tweet in tweet_divs:
                         tweet_text = tweet.find('div', {'data-testid': 'tweetText'})
-                        if not tweet_text:
-                            tweet_text = tweet.find('div', {'lang': True})
-                        if tweet_text:
-                            tweet_content = tweet_text.get_text(strip=True)
-                            if tweet_content not in tweets:
-                                tweets.append(tweet_content)
-                                new_tweets_found = True
-                    
-                    if not new_tweets_found:
-                        scroll_attempt += 1
+                        if tweet_text and tweet_text.get_text(strip=True) not in tweets:
+                            tweets.append(tweet_text.get_text(strip=True))
                     
                     print(f"  Scraped {len(tweets)} tweets so far...")
                     logging.info(f"Scraped {len(tweets)} tweets so far...")
+
+                    # Break if we've collected enough tweets
+                    if len(tweets) >= num_tweets:
+                        break
 
                 if driver:
                     driver.quit()
@@ -155,7 +124,7 @@ def scrape_tweets(username, num_tweets=50, proxies=None):
                 if attempt == max_retries - 1:
                     print(f"  Max retries reached for proxy {proxy}. Trying next proxy.")
                     logging.error(f"Max retries reached for proxy {proxy}. Trying next proxy.")
-                time.sleep(5)  # Wait before retrying
+                time.sleep(random.uniform(3, 7))  # Random wait before retrying
 
     print("All proxies failed. Unable to scrape tweets.")
     logging.error("All proxies failed. Unable to scrape tweets.")
@@ -166,7 +135,7 @@ proxy_list = load_proxies('proxy_list.txt')
 random.shuffle(proxy_list)  # Randomize proxy order
 
 # Example usage
-username = 'elonmusk'
+username = 'BarackObama'
 print(f"Starting to scrape tweets for user: {username}")
 print(f"Total proxies to try: {len(proxy_list)}")
 scraped_tweets = scrape_tweets(username, num_tweets=100, proxies=proxy_list)
