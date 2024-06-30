@@ -9,10 +9,21 @@ from webdriver_manager.chrome import ChromeDriverManager
 from bs4 import BeautifulSoup
 import time
 import logging
+import requests
 
 # Set up logging
 logging.basicConfig(filename='scraper.log', level=logging.INFO,
                     format='%(asctime)s - %(levelname)s - %(message)s')
+
+
+
+def is_proxy_valid(proxy):
+    try:
+        response = requests.get('https://www.google.com', proxies={'http': proxy, 'https': proxy}, timeout=10)
+        return response.status_code == 200
+    except:
+        return False
+
 
 def load_proxies(filename):
     with open(filename, 'r') as f:
@@ -27,6 +38,11 @@ def scrape_tweets(username, num_tweets=50, proxies=None):
     service = Service(ChromeDriverManager().install())
     
     for proxy_index, proxy in enumerate(proxies, 1):
+        
+        if not is_proxy_valid(proxy):
+            print(f"  Proxy {proxy} is not valid, skipping")
+            continue
+        
         print(f"\nTrying proxy {proxy_index}/{len(proxies)}: {proxy}")
         logging.info(f"Trying proxy {proxy_index}/{len(proxies)}: {proxy}")
         
@@ -47,6 +63,7 @@ def scrape_tweets(username, num_tweets=50, proxies=None):
                 driver = webdriver.Chrome(service=service, options=options)
                 url = f"https://twitter.com/{username}"
                 driver.get(url)
+                time.sleep(10)  # Wait for 10 seconds after loading the page
 
                 # Get HTTP status
                 try:
@@ -83,10 +100,11 @@ def scrape_tweets(username, num_tweets=50, proxies=None):
                     last_height = new_height
 
                     soup = BeautifulSoup(driver.page_source, 'html.parser')
-                    tweet_divs = soup.find_all('div', {'data-testid': 'tweet'})
-
+                    tweet_divs = soup.find_all('article')
                     for tweet in tweet_divs:
                         tweet_text = tweet.find('div', {'data-testid': 'tweetText'})
+                        if not tweet_text:
+                            tweet_text = tweet.find('div', {'lang': True})  # Look for divs with a lang attribute
                         if tweet_text and tweet_text.get_text(strip=True) not in tweets:
                             tweets.append(tweet_text.get_text(strip=True))
 
