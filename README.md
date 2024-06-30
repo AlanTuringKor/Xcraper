@@ -28,7 +28,7 @@ This comprehensive Python script empowers you to scrape tweets from public Twitt
 
 1. Update the `username` variable in the script with the desired Twitter username you want to scrape tweets from.
 2. (Optional) Modify the `num_tweets` variable to specify the number of tweets you want to scrape (defaults to 100).
-3. Run the script using the following command: `python twitter_scraper.py`
+3. Run the script using the following command: `python xcraper.py`
 
 **Output:**
 
