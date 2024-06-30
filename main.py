@@ -21,11 +21,15 @@ def load_proxies(filename):
 def scrape_tweets(username, num_tweets=50, proxies=None):
     if not proxies:
         logging.error("No proxies available. Exiting.")
+        print("No proxies available. Exiting.")
         return []
 
     service = Service(ChromeDriverManager().install())
     
-    for proxy in proxies:
+    for proxy_index, proxy in enumerate(proxies, 1):
+        print(f"\nTrying proxy {proxy_index}/{len(proxies)}: {proxy}")
+        logging.info(f"Trying proxy {proxy_index}/{len(proxies)}: {proxy}")
+        
         options = webdriver.ChromeOptions()
         options.add_argument('--headless')
         options.add_argument('--no-sandbox')
@@ -38,10 +42,31 @@ def scrape_tweets(username, num_tweets=50, proxies=None):
         for attempt in range(max_retries):
             driver = None
             try:
-                logging.info(f"Attempt {attempt + 1} to scrape tweets for user {username} using proxy {proxy}")
+                print(f"  Attempt {attempt + 1}/{max_retries} to scrape tweets for user {username}")
+                logging.info(f"Attempt {attempt + 1}/{max_retries} to scrape tweets for user {username}")
                 driver = webdriver.Chrome(service=service, options=options)
                 url = f"https://twitter.com/{username}"
                 driver.get(url)
+
+                # Get HTTP status
+                try:
+                    navigation_entry = driver.execute_script("var performance = window.performance || window.mozPerformance || window.msPerformance || window.webkitPerformance || {}; var network = performance.getEntries() || {}; return network;")
+                    for entry in navigation_entry:
+                        if 'name' in entry and entry['name'] == url:
+                            response_status = entry.get('responseStatus')
+                            if response_status:
+                                print(f"  HTTP Status: {response_status}")
+                                logging.info(f"HTTP Status: {response_status}")
+                            else:
+                                print("  Couldn't retrieve HTTP status code")
+                                logging.warning("Couldn't retrieve HTTP status code")
+                            break
+                    else:
+                        print("  Couldn't find matching navigation entry")
+                        logging.warning("Couldn't find matching navigation entry")
+                except Exception as e:
+                    print(f"  Error retrieving HTTP status: {str(e)}")
+                    logging.error(f"Error retrieving HTTP status: {str(e)}")
 
                 tweets = []
                 last_height = driver.execute_script("return document.body.scrollHeight")
@@ -52,6 +77,7 @@ def scrape_tweets(username, num_tweets=50, proxies=None):
 
                     new_height = driver.execute_script("return document.body.scrollHeight")
                     if new_height == last_height:
+                        print("  Reached end of page or no new content loaded")
                         logging.info("Reached end of page or no new content loaded")
                         break
                     last_height = new_height
@@ -64,39 +90,57 @@ def scrape_tweets(username, num_tweets=50, proxies=None):
                         if tweet_text and tweet_text.get_text(strip=True) not in tweets:
                             tweets.append(tweet_text.get_text(strip=True))
 
+                    print(f"  Scraped {len(tweets)} tweets so far...")
                     logging.info(f"Scraped {len(tweets)} tweets so far...")
 
                 if driver:
                     driver.quit()
-                logging.info(f"Successfully scraped {len(tweets)} tweets for user {username}")
-                return tweets[:num_tweets]
+                
+                if tweets:
+                    print(f"Successfully scraped {len(tweets)} tweets for user {username}")
+                    logging.info(f"Successfully scraped {len(tweets)} tweets for user {username}")
+                    return tweets[:num_tweets]
+                else:
+                    print("  No tweets scraped, trying next attempt or proxy")
+                    logging.info("No tweets scraped, trying next attempt or proxy")
 
             except Exception as e:
+                print(f"  Error during attempt {attempt + 1} with proxy {proxy}: {str(e)}")
                 logging.error(f"Error during attempt {attempt + 1} with proxy {proxy}: {str(e)}", exc_info=True)
                 if driver:
                     driver.quit()
                 if attempt == max_retries - 1:
+                    print(f"  Max retries reached for proxy {proxy}. Trying next proxy.")
                     logging.error(f"Max retries reached for proxy {proxy}. Trying next proxy.")
                 time.sleep(5)  # Wait before retrying
 
+    print("All proxies failed. Unable to scrape tweets.")
     logging.error("All proxies failed. Unable to scrape tweets.")
     return []
 
 # Load proxies
-proxy_list = load_proxies('proxy_list.txt')
+proxy_list = load_proxies('working_proxies_list.txt')
 random.shuffle(proxy_list)  # Randomize proxy order
 
 # Example usage
 username = 'elonmusk'
+print(f"Starting to scrape tweets for user: {username}")
+print(f"Total proxies to try: {len(proxy_list)}")
 scraped_tweets = scrape_tweets(username, num_tweets=100, proxies=proxy_list)
 
 # Store tweets in a file
-try:
-    with open(f"{username}_tweets.txt", "w", encoding="utf-8") as f:
-        for i, tweet in enumerate(scraped_tweets, 1):
-            f.write(f"Tweet {i}: {tweet}\n\n")
-    logging.info(f"Saved {len(scraped_tweets)} tweets to {username}_tweets.txt")
-except Exception as e:
-    logging.error(f"Error while saving tweets to file: {str(e)}", exc_info=True)
+if scraped_tweets:
+    try:
+        with open(f"{username}_tweets.txt", "w", encoding="utf-8") as f:
+            for i, tweet in enumerate(scraped_tweets, 1):
+                f.write(f"Tweet {i}: {tweet}\n\n")
+        print(f"Saved {len(scraped_tweets)} tweets to {username}_tweets.txt")
+        logging.info(f"Saved {len(scraped_tweets)} tweets to {username}_tweets.txt")
+    except Exception as e:
+        print(f"Error while saving tweets to file: {str(e)}")
+        logging.error(f"Error while saving tweets to file: {str(e)}", exc_info=True)
+else:
+    print("No tweets were scraped.")
+    logging.info("No tweets were scraped.")
 
 print(f"Scraping completed. Check {username}_tweets.txt for results and scraper.log for detailed logs.")
