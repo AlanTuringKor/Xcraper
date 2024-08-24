@@ -11,13 +11,19 @@ import time
 import logging
 import requests
 import random
-from CloudflareBypasser import CloudflareBypasser
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import signal
+import sys
 
 # Set up logging
 logging.basicConfig(filename='scraper.log', level=logging.INFO,
                     format='%(asctime)s - %(levelname)s - %(message)s')
 
+def signal_handler(sig, frame):
+    print('KeyboardInterrupt detected. Exiting...')
+    sys.exit(0)
 
+signal.signal(signal.SIGINT, signal_handler)
 
 def is_proxy_valid(proxy):
     try:
@@ -26,10 +32,23 @@ def is_proxy_valid(proxy):
     except:
         return False
 
-
 def load_proxies(filename):
     with open(filename, 'r') as f:
         return [line.strip() for line in f if line.strip()]
+
+def check_proxies_parallel(proxies):
+    valid_proxies = []
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        future_to_proxy = {executor.submit(is_proxy_valid, proxy): proxy for proxy in proxies}
+        for future in as_completed(future_to_proxy):
+            proxy = future_to_proxy[future]
+            if future.result():
+                valid_proxies.append(proxy)
+                print(f"Proxy {proxy} is valid.")
+                break  # Stop checking further proxies if one works
+            else:
+                print(f"Proxy {proxy} is not valid.")
+    return valid_proxies
 
 def scrape_tweets(username, num_tweets=50, proxies=None):
     if not proxies:
@@ -134,11 +153,14 @@ def scrape_tweets(username, num_tweets=50, proxies=None):
 proxy_list = load_proxies('proxy_list.txt')
 random.shuffle(proxy_list)  # Randomize proxy order
 
+# Check proxies in parallel
+valid_proxies = check_proxies_parallel(proxy_list)
+
 # Example usage
 username = 'BarackObama'
 print(f"Starting to scrape tweets for user: {username}")
-print(f"Total proxies to try: {len(proxy_list)}")
-scraped_tweets = scrape_tweets(username, num_tweets=100, proxies=proxy_list)
+print(f"Total valid proxies to try: {len(valid_proxies)}")
+scraped_tweets = scrape_tweets(username, num_tweets=100, proxies=valid_proxies)
 
 # Store tweets in a file
 if scraped_tweets:
